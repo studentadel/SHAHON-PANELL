@@ -1,4 +1,4 @@
-# ⚡ ISSPanel v2.0 – Redesign
+# ⚡ SHAHON-PANELL v2.0 – Redesign
 
 پنل حرفه‌ای مدیریت کانفیگ‌های VLESS با طراحی مدرن آبی تیره
 

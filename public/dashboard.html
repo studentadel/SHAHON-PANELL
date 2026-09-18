@@ -1,0 +1,805 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl" data-theme="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>داشبورد | ISSPanel</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdn.jsdelivr.net/npm/daisyui@4.12.14/dist/full.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/gh/rastikerdar/vazirmatn@v33.003/Vazirmatn-font-face.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs/qrcode.min.js"></script>
+  <style>
+    body { font-family: Vazirmatn, sans-serif; }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .sidebar-link.active { background: rgba(59,130,246,0.15); color: #60a5fa; border-right: 3px solid #3b82f6; }
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0f172a; }
+    ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 min-h-screen">
+
+<div class="flex min-h-screen">
+  <!-- Sidebar -->
+  <aside class="w-64 bg-slate-900 border-l border-slate-800 flex flex-col fixed right-0 top-0 bottom-0 z-30">
+    <div class="p-5 border-b border-slate-800 flex items-center gap-3">
+      <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/20">
+        <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" />
+        </svg>
+      </div>
+      <div>
+        <div class="font-bold text-sm">ISSPanel</div>
+        <div class="text-xs text-slate-400">v2.0 Redesign</div>
+      </div>
+    </div>
+
+    <nav class="flex-1 p-3 space-y-1 overflow-y-auto">
+      <button onclick="showSection('dashboard')" class="sidebar-link active w-full text-right px-4 py-2.5 rounded-lg text-sm flex items-center gap-3 hover:bg-slate-800 transition" data-section="dashboard">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-4 0a1 1 0 01-1-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 01-1 1h-2z"/></svg>
+        داشبورد
+      </button>
+      <button onclick="showSection('panels')" class="sidebar-link w-full text-right px-4 py-2.5 rounded-lg text-sm flex items-center gap-3 hover:bg-slate-800 transition" data-section="panels">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"/></svg>
+        پنل‌ها
+      </button>
+      <button onclick="showSection('inbounds')" class="sidebar-link w-full text-right px-4 py-2.5 rounded-lg text-sm flex items-center gap-3 hover:bg-slate-800 transition" data-section="inbounds">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 9l3 3-3 3m5 0h3M5 20h14a2 2 0 002-2V6a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+        اینباندها
+      </button>
+      <button onclick="showSection('users')" class="sidebar-link w-full text-right px-4 py-2.5 rounded-lg text-sm flex items-center gap-3 hover:bg-slate-800 transition" data-section="users">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4.354a4 4 0 110 5.292M15 21H3v-1a6 6 0 0112 0v1zm0 0h6v-1a6 6 0 00-9-5.197M13 7a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
+        کاربران
+      </button>
+    </nav>
+
+    <div class="p-4 border-t border-slate-800">
+      <a href="/logout" class="btn btn-sm btn-outline btn-error w-full">خروج</a>
+    </div>
+  </aside>
+
+  <!-- Main Content -->
+  <main class="flex-1 mr-64 p-6">
+    <!-- Header -->
+    <div class="flex items-center justify-between mb-6">
+      <div>
+        <h1 id="pageTitle" class="text-2xl font-bold">داشبورد</h1>
+        <p class="text-sm text-slate-400">مدیریت مرکزی پنل‌ها و کانفیگ‌ها</p>
+      </div>
+      <button onclick="refreshAll()" class="btn btn-sm btn-primary gap-2">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+        بروزرسانی
+      </button>
+    </div>
+
+    <!-- ========== DASHBOARD SECTION ========== -->
+    <section id="section-dashboard" class="section">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <div class="text-sm text-slate-400 mb-1">پنل‌ها</div>
+          <div class="text-3xl font-bold text-blue-400" id="statPanels">0</div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <div class="text-sm text-slate-400 mb-1">اینباندها</div>
+          <div class="text-3xl font-bold text-cyan-400" id="statInbounds">0</div>
+        </div>
+        <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+          <div class="text-sm text-slate-400 mb-1">کاربران</div>
+          <div class="text-3xl font-bold text-emerald-400" id="statUsers">0</div>
+        </div>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl p-5">
+        <h3 class="font-bold mb-3">دسترسی سریع</h3>
+        <div class="flex flex-wrap gap-2">
+          <button class="btn btn-primary btn-sm" onclick="showSection('panels'); openPanelModal()">+ پنل جدید</button>
+          <button class="btn btn-secondary btn-sm" onclick="showSection('inbounds'); openInboundModal()">+ اینباند</button>
+          <button class="btn btn-accent btn-sm" onclick="showSection('users'); openUserModal()">+ کاربر</button>
+          <button class="btn btn-warning btn-sm" onclick="openPresetModal()">پریست ضد فیلتر</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== PANELS SECTION ========== -->
+    <section id="section-panels" class="section hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-bold">لیست پنل‌ها</h2>
+        <button class="btn btn-primary btn-sm" onclick="openPanelModal()">+ افزودن پنل</button>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="table table-zebra w-full">
+            <thead>
+              <tr class="text-slate-400">
+                <th>#</th>
+                <th>نام</th>
+                <th>آدرس</th>
+                <th>نوع</th>
+                <th>عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="panelsTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== INBOUNDS SECTION ========== -->
+    <section id="section-inbounds" class="section hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-bold">لیست اینباندها</h2>
+        <div class="flex gap-2">
+          <button class="btn btn-warning btn-sm" onclick="openPresetModal()">پریست ضد فیلتر</button>
+          <button class="btn btn-primary btn-sm" onclick="openInboundModal()">+ افزودن اینباند</button>
+        </div>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="table table-zebra w-full text-sm">
+            <thead>
+              <tr class="text-slate-400">
+                <th>#</th>
+                <th>پنل</th>
+                <th>Tag</th>
+                <th>پروتکل</th>
+                <th>پورت</th>
+                <th>Host</th>
+                <th>TLS / FP</th>
+                <th>عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="inboundsTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========== USERS SECTION ========== -->
+    <section id="section-users" class="section hidden">
+      <div class="flex justify-between items-center mb-4">
+        <h2 class="text-lg font-bold">لیست کاربران</h2>
+        <button class="btn btn-primary btn-sm" onclick="openUserModal()">+ افزودن کاربر</button>
+      </div>
+      <div class="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+        <div class="overflow-x-auto">
+          <table class="table table-zebra w-full text-sm">
+            <thead>
+              <tr class="text-slate-400">
+                <th>#</th>
+                <th>نام کاربری</th>
+                <th>UUID</th>
+                <th>دسترسی‌ها</th>
+                <th>عملیات</th>
+              </tr>
+            </thead>
+            <tbody id="usersTable"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- ==================== MODALS ==================== -->
+
+<!-- Panel Modal -->
+<dialog id="panelModal" class="modal">
+  <div class="modal-box bg-slate-900 border border-slate-700 max-w-lg">
+    <h3 class="font-bold text-lg mb-4" id="panelModalTitle">افزودن پنل</h3>
+    <form id="panelForm" class="space-y-3">
+      <input type="hidden" id="panelEditId" />
+      <div>
+        <label class="label text-sm">نام پنل</label>
+        <input name="name" id="panel_name" class="input input-bordered w-full bg-slate-800" required />
+      </div>
+      <div>
+        <label class="label text-sm">آدرس (برای لینک)</label>
+        <input name="address" id="panel_address" class="input input-bordered w-full bg-slate-800" placeholder="us.example.com" required />
+      </div>
+      <div class="form-control">
+        <label class="label cursor-pointer justify-start gap-3">
+          <input type="checkbox" id="panel_is_remote" class="checkbox checkbox-primary checkbox-sm" onchange="toggleRemote()" />
+          <span class="label-text">پنل Remote</span>
+        </label>
+      </div>
+      <div id="remoteFields" class="hidden space-y-3">
+        <div>
+          <label class="label text-sm">API Base</label>
+          <input name="api_base" id="panel_api_base" class="input input-bordered w-full bg-slate-800" placeholder="https://us.example.com" />
+        </div>
+        <div>
+          <label class="label text-sm">API Key</label>
+          <input name="api_key" id="panel_api_key" class="input input-bordered w-full bg-slate-800 mono" />
+        </div>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button type="submit" class="btn btn-primary flex-1">ذخیره</button>
+        <button type="button" class="btn btn-ghost" onclick="panelModal.close()">انصراف</button>
+      </div>
+    </form>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+
+<!-- Inbound Modal -->
+<dialog id="inboundModal" class="modal">
+  <div class="modal-box bg-slate-900 border border-slate-700 max-w-2xl">
+    <h3 class="font-bold text-lg mb-4" id="inboundModalTitle">افزودن اینباند</h3>
+    <form id="inboundForm" class="grid grid-cols-1 md:grid-cols-2 gap-3">
+      <input type="hidden" id="inboundEditId" />
+      <div class="md:col-span-2">
+        <label class="label text-sm">پنل</label>
+        <select name="panel_id" id="inbound_panel_id" class="select select-bordered w-full bg-slate-800" required></select>
+      </div>
+      <div>
+        <label class="label text-sm">Tag</label>
+        <input name="tag" id="inbound_tag" class="input input-bordered w-full bg-slate-800" />
+      </div>
+      <div>
+        <label class="label text-sm">Port</label>
+        <input name="port" id="inbound_port" value="443" class="input input-bordered w-full bg-slate-800" required />
+      </div>
+      <div>
+        <label class="label text-sm">Protocol</label>
+        <select name="protocol" id="inbound_protocol" class="select select-bordered w-full bg-slate-800">
+          <option value="ws">ws</option>
+          <option value="grpc">grpc</option>
+          <option value="xhttp">xhttp</option>
+          <option value="tcp">tcp</option>
+          <option value="http">http</option>
+          <option value="h2">h2</option>
+        </select>
+      </div>
+      <div>
+        <label class="label text-sm">Host / SNI</label>
+        <input name="host" id="inbound_host" class="input input-bordered w-full bg-slate-800" required />
+      </div>
+      <div>
+        <label class="label text-sm">Path</label>
+        <input name="path" id="inbound_path" class="input input-bordered w-full bg-slate-800" required />
+      </div>
+      <div>
+        <label class="label text-sm">TLS</label>
+        <select name="tls" id="inbound_tls" class="select select-bordered w-full bg-slate-800">
+          <option value="tls">tls</option>
+          <option value="none">none</option>
+          <option value="reality">reality</option>
+        </select>
+      </div>
+      <div>
+        <label class="label text-sm">Fingerprint (fp)</label>
+        <select name="fp" id="inbound_fp" class="select select-bordered w-full bg-slate-800">
+          <option value="chrome">chrome</option>
+          <option value="firefox">firefox</option>
+          <option value="safari">safari</option>
+          <option value="ios">ios</option>
+          <option value="android">android</option>
+          <option value="edge">edge</option>
+          <option value="360">360</option>
+          <option value="qq">qq</option>
+          <option value="random">random</option>
+          <option value="randomized">randomized</option>
+          <option value="none">none</option>
+        </select>
+      </div>
+      <div>
+        <label class="label text-sm">ALPN</label>
+        <select name="alpn" id="inbound_alpn" class="select select-bordered w-full bg-slate-800">
+          <option value="http/1.1">http/1.1</option>
+          <option value="h2">h2</option>
+          <option value="h3">h3</option>
+          <option value="none">none</option>
+        </select>
+      </div>
+      <div class="md:col-span-2 flex gap-2 pt-2">
+        <button type="submit" class="btn btn-primary flex-1">ذخیره</button>
+        <button type="button" class="btn btn-ghost" onclick="inboundModal.close()">انصراف</button>
+      </div>
+    </form>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+
+<!-- User Modal -->
+<dialog id="userModal" class="modal">
+  <div class="modal-box bg-slate-900 border border-slate-700 max-w-md">
+    <h3 class="font-bold text-lg mb-4" id="userModalTitle">افزودن کاربر</h3>
+    <form id="userForm" class="space-y-3">
+      <input type="hidden" id="userEditId" />
+      <div>
+        <label class="label text-sm">نام کاربری</label>
+        <input name="username" id="user_username" class="input input-bordered w-full bg-slate-800" required />
+      </div>
+      <div>
+        <label class="label text-sm">UUID</label>
+        <div class="flex gap-2">
+          <input name="uuid" id="user_uuid" class="input input-bordered w-full bg-slate-800 mono" required />
+          <button type="button" class="btn btn-warning btn-sm" onclick="document.getElementById('user_uuid').value = crypto.randomUUID()">تولید</button>
+        </div>
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button type="submit" class="btn btn-primary flex-1">ذخیره</button>
+        <button type="button" class="btn btn-ghost" onclick="userModal.close()">انصراف</button>
+      </div>
+    </form>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+
+<!-- Assign Modal -->
+<dialog id="assignModal" class="modal">
+  <div class="modal-box bg-slate-900 border border-slate-700 max-w-2xl">
+    <h3 class="font-bold text-lg mb-4">تخصیص اینباند به کاربر</h3>
+    <form id="assignForm" class="space-y-4">
+      <input type="hidden" id="assign_user_id" />
+      <div class="text-sm text-slate-400" id="assign_user_label"></div>
+      <div id="assignInboundsList" class="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-80 overflow-y-auto border border-slate-700 rounded-xl p-3 bg-slate-800/50"></div>
+      <div class="flex gap-2">
+        <button type="submit" class="btn btn-primary flex-1">ذخیره تخصیص</button>
+        <button type="button" class="btn btn-ghost" onclick="assignModal.close()">انصراف</button>
+      </div>
+    </form>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+
+<!-- Preset Modal -->
+<dialog id="presetModal" class="modal">
+  <div class="modal-box bg-slate-900 border border-slate-700 max-w-lg">
+    <h3 class="font-bold text-lg mb-4">پریست ضد فیلتر</h3>
+    <p class="text-sm text-slate-400 mb-4">۳ اینباند (ws + grpc + xhttp) با path تصادفی روی یک پنل ساخته می‌شود. می‌توانید تنظیمات زیر را قبل از ساخت تغییر دهید.</p>
+    <form id="presetForm" class="space-y-3">
+      <div>
+        <label class="label text-sm">پنل</label>
+        <select name="panel_id" id="preset_panel_id" class="select select-bordered w-full bg-slate-800" required></select>
+      </div>
+      <div>
+        <label class="label text-sm">Host / SNI</label>
+        <input name="host" class="input input-bordered w-full bg-slate-800" required />
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="label text-sm">Port</label>
+          <input name="port" value="443" class="input input-bordered w-full bg-slate-800" />
+        </div>
+        <div>
+          <label class="label text-sm">TLS</label>
+          <select name="tls" class="select select-bordered w-full bg-slate-800">
+            <option value="tls">tls</option>
+            <option value="none">none</option>
+            <option value="reality">reality</option>
+          </select>
+        </div>
+      </div>
+      <div class="grid grid-cols-2 gap-3">
+        <div>
+          <label class="label text-sm">Fingerprint (fp)</label>
+          <select name="fp" class="select select-bordered w-full bg-slate-800">
+            <option value="chrome">chrome</option>
+            <option value="firefox">firefox</option>
+            <option value="safari">safari</option>
+            <option value="ios">ios</option>
+            <option value="android">android</option>
+            <option value="edge">edge</option>
+            <option value="360">360</option>
+            <option value="qq">qq</option>
+            <option value="random">random</option>
+            <option value="randomized">randomized</option>
+            <option value="none">none</option>
+          </select>
+        </div>
+        <div>
+          <label class="label text-sm">ALPN</label>
+          <select name="alpn" class="select select-bordered w-full bg-slate-800">
+            <option value="http/1.1">http/1.1</option>
+            <option value="h2">h2</option>
+            <option value="h3">h3</option>
+            <option value="none">none</option>
+          </select>
+        </div>
+      </div>
+      <div>
+        <label class="label text-sm">Tag Prefix</label>
+        <input name="tagPrefix" value="af" class="input input-bordered w-full bg-slate-800" placeholder="af" />
+      </div>
+      <div class="flex gap-2 pt-2">
+        <button type="submit" class="btn btn-warning flex-1">ایجاد پریست</button>
+        <button type="button" class="btn btn-ghost" onclick="presetModal.close()">انصراف</button>
+      </div>
+    </form>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+
+<!-- QR Modal -->
+<dialog id="qrModal" class="modal">
+  <div class="modal-box bg-slate-900 border border-slate-700 max-w-sm text-center">
+    <h3 class="font-bold text-lg mb-3">QR Code</h3>
+    <div id="qrcode" class="flex justify-center bg-white p-3 rounded-xl inline-block mx-auto"></div>
+    <button class="btn btn-sm btn-primary w-full mt-4" onclick="copyText(window.currentQrText)">کپی لینک</button>
+    <form method="dialog" class="mt-2"><button class="btn btn-ghost w-full">بستن</button></form>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+
+<!-- Links Modal -->
+<dialog id="linksModal" class="modal">
+  <div class="modal-box bg-slate-900 border border-slate-700 max-w-2xl">
+    <h3 class="font-bold text-lg mb-3">لینک‌های کاربر</h3>
+    <pre id="linksContent" class="bg-slate-800 p-4 rounded-xl text-xs overflow-x-auto max-h-96 whitespace-pre-wrap mono"></pre>
+    <div class="flex gap-2 mt-4">
+      <button class="btn btn-primary btn-sm flex-1" onclick="copyText(document.getElementById('linksContent').textContent)">کپی همه</button>
+      <button class="btn btn-ghost btn-sm" onclick="linksModal.close()">بستن</button>
+    </div>
+  </div>
+  <form method="dialog" class="modal-backdrop"><button>close</button></form>
+</dialog>
+
+<script>
+  // ========== State ==========
+  let panels = [];
+  let inbounds = [];
+  let users = [];
+
+  // ========== API Helper ==========
+  async function api(url, options = {}) {
+    const res = await fetch(url, options);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || data.message || 'خطا');
+    return data;
+  }
+
+  function toast(msg, type = 'success') {
+    // simple alert for now
+    alert(msg);
+  }
+
+  async function copyText(text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      alert('کپی شد ✅');
+    } catch {
+      alert('کپی نشد');
+    }
+  }
+
+  // ========== Navigation ==========
+  function showSection(name) {
+    document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+    document.getElementById('section-' + name).classList.remove('hidden');
+    document.querySelectorAll('.sidebar-link').forEach(b => b.classList.remove('active'));
+    document.querySelector(`[data-section="${name}"]`)?.classList.add('active');
+
+    const titles = { dashboard: 'داشبورد', panels: 'مدیریت پنل‌ها', inbounds: 'مدیریت اینباندها', users: 'مدیریت کاربران' };
+    document.getElementById('pageTitle').textContent = titles[name] || name;
+  }
+
+  // ========== Refresh ==========
+  async function refreshAll() {
+    try {
+      const [stats, p, i, u] = await Promise.all([
+        api('/api/stats'),
+        api('/api/panels'),
+        api('/api/inbounds'),
+        api('/api/users-with-access')
+      ]);
+      panels = p;
+      inbounds = i;
+      users = u;
+
+      document.getElementById('statPanels').textContent = stats.panels;
+      document.getElementById('statInbounds').textContent = stats.inbounds;
+      document.getElementById('statUsers').textContent = stats.users;
+
+      renderPanels();
+      renderInbounds();
+      renderUsers();
+      fillPanelSelects();
+    } catch (e) {
+      console.error(e);
+    }
+  }
+
+  // ========== Render Panels ==========
+  function renderPanels() {
+    const tbody = document.getElementById('panelsTable');
+    tbody.innerHTML = panels.map(p => `
+      <tr>
+        <td>${p.id}</td>
+        <td class="font-medium">${escapeHtml(p.name)}</td>
+        <td class="mono text-xs">${escapeHtml(p.address)}</td>
+        <td>${p.is_remote ? '<span class="badge badge-info badge-sm">Remote</span>' : '<span class="badge badge-success badge-sm">Local</span>'}</td>
+        <td class="flex gap-1">
+          <button class="btn btn-xs btn-ghost" onclick='editPanel(${JSON.stringify(p)})'>ویرایش</button>
+          <button class="btn btn-xs btn-error btn-outline" onclick="deletePanel(${p.id})">حذف</button>
+        </td>
+      </tr>
+    `).join('') || '<tr><td colspan="5" class="text-center text-slate-500">هنوز پنلی وجود ندارد</td></tr>';
+  }
+
+  // ========== Render Inbounds ==========
+  function renderInbounds() {
+    const tbody = document.getElementById('inboundsTable');
+    tbody.innerHTML = inbounds.map(i => `
+      <tr>
+        <td>${i.id}</td>
+        <td>${escapeHtml(i.panel_name || '')}</td>
+        <td class="mono text-xs">${escapeHtml(i.tag || '')}</td>
+        <td><span class="badge badge-sm">${i.protocol}</span></td>
+        <td>${i.port}</td>
+        <td class="mono text-xs">${escapeHtml(i.host)}</td>
+        <td class="text-xs">${i.tls} / ${i.fp}</td>
+        <td class="flex gap-1">
+          <button class="btn btn-xs btn-ghost" onclick='editInbound(${JSON.stringify(i)})'>ویرایش</button>
+          <button class="btn btn-xs btn-error btn-outline" onclick="deleteInbound(${i.id})">حذف</button>
+        </td>
+      </tr>
+    `).join('') || '<tr><td colspan="8" class="text-center text-slate-500">هنوز اینباندی وجود ندارد</td></tr>';
+  }
+
+  // ========== Render Users ==========
+  function renderUsers() {
+    const tbody = document.getElementById('usersTable');
+    tbody.innerHTML = users.map(u => {
+      const accessHtml = (u.access || []).map(a =>
+        `<span class="badge badge-sm badge-outline mr-1">${escapeHtml(a.panel_name)}:${a.protocol}</span>`
+      ).join('') || '<span class="text-slate-500 text-xs">بدون دسترسی</span>';
+
+      return `
+        <tr>
+          <td>${u.id}</td>
+          <td class="font-medium">${escapeHtml(u.username)}</td>
+          <td class="mono text-xs max-w-[140px] truncate">${u.uuid}</td>
+          <td>${accessHtml}</td>
+          <td class="flex flex-wrap gap-1">
+            <button class="btn btn-xs btn-ghost" onclick='editUser(${JSON.stringify(u)})'>ویرایش</button>
+            <button class="btn btn-xs btn-info btn-outline" onclick="openAssign(${u.id}, '${escapeHtml(u.username)}')">تخصیص</button>
+            <button class="btn btn-xs btn-success btn-outline" onclick="showUserLinks(${u.id})">لینک‌ها</button>
+            <button class="btn btn-xs btn-error btn-outline" onclick="deleteUser(${u.id})">حذف</button>
+          </td>
+        </tr>
+      `;
+    }).join('') || '<tr><td colspan="5" class="text-center text-slate-500">هنوز کاربری وجود ندارد</td></tr>';
+  }
+
+  function escapeHtml(str) {
+    return String(str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+  }
+
+  // ========== Panel CRUD ==========
+  function openPanelModal(edit = null) {
+    document.getElementById('panelEditId').value = edit ? edit.id : '';
+    document.getElementById('panelModalTitle').textContent = edit ? 'ویرایش پنل' : 'افزودن پنل';
+    document.getElementById('panel_name').value = edit ? edit.name : '';
+    document.getElementById('panel_address').value = edit ? edit.address : '';
+    document.getElementById('panel_is_remote').checked = edit ? !!edit.is_remote : false;
+    document.getElementById('panel_api_base').value = edit ? (edit.api_base || '') : '';
+    document.getElementById('panel_api_key').value = edit ? (edit.api_key || '') : '';
+    toggleRemote();
+    panelModal.showModal();
+  }
+  function editPanel(p) { openPanelModal(p); }
+  function toggleRemote() {
+    document.getElementById('remoteFields').classList.toggle('hidden', !document.getElementById('panel_is_remote').checked);
+  }
+
+  document.getElementById('panelForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('panelEditId').value;
+    const data = {
+      name: document.getElementById('panel_name').value,
+      address: document.getElementById('panel_address').value,
+      is_remote: document.getElementById('panel_is_remote').checked ? 1 : 0,
+      api_base: document.getElementById('panel_api_base').value,
+      api_key: document.getElementById('panel_api_key').value
+    };
+    try {
+      if (id) {
+        await api(`/api/panels/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      } else {
+        await api('/api/panels', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      }
+      panelModal.close();
+      await refreshAll();
+    } catch (err) { alert(err.message); }
+  });
+
+  async function deletePanel(id) {
+    if (!confirm('آیا مطمئن هستید این پنل حذف شود؟ (اینباندهای مربوطه هم حذف می‌شوند)')) return;
+    try {
+      await api(`/api/panels/${id}`, { method: 'DELETE' });
+      await refreshAll();
+    } catch (err) { alert(err.message); }
+  }
+
+  // ========== Inbound CRUD ==========
+  function openInboundModal(edit = null) {
+    document.getElementById('inboundEditId').value = edit ? edit.id : '';
+    document.getElementById('inboundModalTitle').textContent = edit ? 'ویرایش اینباند' : 'افزودن اینباند';
+    fillPanelSelects();
+    if (edit) {
+      document.getElementById('inbound_panel_id').value = edit.panel_id;
+      document.getElementById('inbound_tag').value = edit.tag || '';
+      document.getElementById('inbound_port').value = edit.port;
+      document.getElementById('inbound_protocol').value = edit.protocol;
+      document.getElementById('inbound_host').value = edit.host;
+      document.getElementById('inbound_path').value = edit.path;
+      document.getElementById('inbound_tls').value = edit.tls || 'tls';
+      document.getElementById('inbound_fp').value = edit.fp || 'chrome';
+      document.getElementById('inbound_alpn').value = edit.alpn || 'http/1.1';
+    } else {
+      document.getElementById('inboundForm').reset();
+      document.getElementById('inbound_port').value = '443';
+    }
+    inboundModal.showModal();
+  }
+  function editInbound(i) { openInboundModal(i); }
+
+  document.getElementById('inboundForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('inboundEditId').value;
+    const panelId = document.getElementById('inbound_panel_id').value;
+    const data = {
+      tag: document.getElementById('inbound_tag').value,
+      port: document.getElementById('inbound_port').value,
+      protocol: document.getElementById('inbound_protocol').value,
+      host: document.getElementById('inbound_host').value,
+      path: document.getElementById('inbound_path').value,
+      tls: document.getElementById('inbound_tls').value,
+      fp: document.getElementById('inbound_fp').value,
+      alpn: document.getElementById('inbound_alpn').value
+    };
+    try {
+      if (id) {
+        await api(`/api/inbounds/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      } else {
+        await api(`/api/panels/${panelId}/inbounds`, { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      }
+      inboundModal.close();
+      await refreshAll();
+    } catch (err) { alert(err.message); }
+  });
+
+  async function deleteInbound(id) {
+    if (!confirm('این اینباند حذف شود؟')) return;
+    try {
+      await api(`/api/inbounds/${id}`, { method: 'DELETE' });
+      await refreshAll();
+    } catch (err) { alert(err.message); }
+  }
+
+  // ========== User CRUD ==========
+  function openUserModal(edit = null) {
+    document.getElementById('userEditId').value = edit ? edit.id : '';
+    document.getElementById('userModalTitle').textContent = edit ? 'ویرایش کاربر' : 'افزودن کاربر';
+    document.getElementById('user_username').value = edit ? edit.username : '';
+    document.getElementById('user_uuid').value = edit ? edit.uuid : '';
+    userModal.showModal();
+  }
+  function editUser(u) { openUserModal(u); }
+
+  document.getElementById('userForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const id = document.getElementById('userEditId').value;
+    const data = {
+      username: document.getElementById('user_username').value,
+      uuid: document.getElementById('user_uuid').value
+    };
+    try {
+      if (id) {
+        await api(`/api/users/${id}`, { method: 'PUT', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      } else {
+        await api('/api/users', { method: 'POST', headers: {'Content-Type':'application/json'}, body: JSON.stringify(data) });
+      }
+      userModal.close();
+      await refreshAll();
+    } catch (err) { alert(err.message); }
+  });
+
+  async function deleteUser(id) {
+    if (!confirm('این کاربر حذف شود؟')) return;
+    try {
+      await api(`/api/users/${id}`, { method: 'DELETE' });
+      await refreshAll();
+    } catch (err) { alert(err.message); }
+  }
+
+  // ========== Assign ==========
+  async function openAssign(userId, username) {
+    document.getElementById('assign_user_id').value = userId;
+    document.getElementById('assign_user_label').textContent = 'کاربر: ' + username;
+    const user = users.find(u => u.id === userId);
+    const selected = new Set((user?.access || []).map(a => a.id));
+
+    const box = document.getElementById('assignInboundsList');
+    box.innerHTML = inbounds.map(i => `
+      <label class="flex items-center gap-2 p-2 rounded-lg hover:bg-slate-700 cursor-pointer">
+        <input type="checkbox" value="${i.id}" class="checkbox checkbox-sm checkbox-primary" ${selected.has(i.id) ? 'checked' : ''} />
+        <span class="text-sm">${escapeHtml(i.panel_name)} — ${i.protocol} : ${i.port} (${escapeHtml(i.tag || '')})</span>
+      </label>
+    `).join('') || '<div class="text-slate-500 text-sm">اینباندی وجود ندارد</div>';
+
+    assignModal.showModal();
+  }
+
+  document.getElementById('assignForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const userId = document.getElementById('assign_user_id').value;
+    const checks = [...document.querySelectorAll('#assignInboundsList input:checked')].map(c => Number(c.value));
+    try {
+      await api(`/api/users/${userId}/inbounds`, {
+        method: 'PATCH',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({ inboundIds: checks })
+      });
+      assignModal.close();
+      await refreshAll();
+    } catch (err) { alert(err.message); }
+  });
+
+  // ========== Preset ==========
+  function openPresetModal() {
+    fillPanelSelects();
+    presetModal.showModal();
+  }
+
+  document.getElementById('presetForm').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const fd = new FormData(e.target);
+    const panelId = fd.get('panel_id');
+    const data = Object.fromEntries(fd);
+    delete data.panel_id;
+    try {
+      await api(`/api/panels/${panelId}/inbounds/preset-anti-filter`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify(data)
+      });
+      presetModal.close();
+      await refreshAll();
+      alert('پریست با موفقیت ساخته شد');
+    } catch (err) { alert(err.message); }
+  });
+
+  // ========== Links ==========
+  async function showUserLinks(userId) {
+    try {
+      const user = users.find(u => u.id === userId);
+      if (!user) return;
+      // fetch links via sub token if available, or rebuild
+      const links = [];
+      // We need to call an endpoint - for simplicity show from access
+      // Better: create a quick endpoint, but for now use existing sub if possible
+      const res = await fetch(`/api/users-with-access`);
+      // fallback simple message
+      const access = user.access || [];
+      if (!access.length) {
+        alert('این کاربر هیچ دسترسی‌ای ندارد');
+        return;
+      }
+      // Build approximate links client side is hard without full data
+      // Let's add a simple way: open sub if token exists
+      if (user.sub_token) {
+        const base = location.origin;
+        const text = `Subscription:\n${base}/sub/${user.sub_token}\n\nBase64:\n${base}/sub64/${user.sub_token}`;
+        document.getElementById('linksContent').textContent = text;
+        linksModal.showModal();
+      } else {
+        alert('توکن سابسکریپشن موجود نیست');
+      }
+    } catch (e) {
+      alert(e.message);
+    }
+  }
+
+  // ========== Helpers ==========
+  function fillPanelSelects() {
+    const opts = panels.map(p => `<option value="${p.id}">${escapeHtml(p.name)} (${escapeHtml(p.address)})</option>`).join('');
+    document.getElementById('inbound_panel_id').innerHTML = opts;
+    document.getElementById('preset_panel_id').innerHTML = opts;
+  }
+
+  // Init
+  refreshAll();
+</script>
+</body>
+</html>

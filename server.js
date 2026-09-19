@@ -692,7 +692,7 @@ if (isAgentEnabled()) {
 
 // ========================= START =========================
 server.listen(PORT, () => {
-  console.log(`🚀 ISSPanel Redesign running on port ${PORT}`);
+  console.log(`🚀 SHAHON-PANELL Redesign running on port ${PORT}`);
   console.log(`   Role: ${NODE_ROLE}`);
   console.log(`   Admin: ${ADMIN_USER}`);
 });

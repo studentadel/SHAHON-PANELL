@@ -235,18 +235,75 @@ async function getUserLinksByUserId(userId) {
   return rows.map(r => buildVlessLink(r));
 }
 
-// ========================= XRAY (Local only) =========================
+// ========================= XRAY ENGINE =========================
 let xrayProcess = null;
 
-function regenerateXrayConfigLocalOnly() {
-  // Placeholder - in real deployment you would build full xray config from local inbounds
-  // For now we keep the structure compatible
+async function regenerateXrayConfigLocalOnly() {
   try {
-    if (fs.existsSync(XRAY_CONFIG_PATH)) {
-      // keep existing logic light
-    }
+    if (!isAgentEnabled() && NODE_ROLE !== 'hybrid') return;
+
+    const inbounds = await dbAll(`
+      SELECT i.*, p.is_remote
+      FROM inbounds i
+      JOIN panels p ON p.id = i.panel_id
+      WHERE p.is_remote = 0
+    `);
+
+    const users = await dbAll(`SELECT uuid FROM users`);
+    const clients = users.map(u => ({ id: u.uuid, flow: '' }));
+
+    const xrayInbounds = [];
+
+    inbounds.forEach((ib) => {
+      const internalPort = XRAY_BASE_PORT + Number(ib.id);
+      const network = ib.protocol; // ws, grpc, xhttp
+
+      const inboundObj = {
+        listen: '127.0.0.1',
+        port: internalPort,
+        protocol: 'vless',
+        tag: `inbound-${ib.id}`,
+        settings: {
+          clients: clients,
+          decryption: 'none'
+        },
+        streamSettings: {
+          network: network,
+          security: 'none'
+        }
+      };
+
+      if (network === 'ws') {
+        inboundObj.streamSettings.wsSettings = {
+          path: normalizePath(ib.path),
+          headers: { Host: ib.host }
+        };
+      } else if (network === 'grpc') {
+        inboundObj.streamSettings.grpcSettings = {
+          serviceName: normalizePath(ib.path).replace(/^\//, ''),
+          multiMode: true
+        };
+      } else if (network === 'xhttp') {
+        inboundObj.streamSettings.xhttpSettings = {
+          path: normalizePath(ib.path),
+          host: ib.host,
+          mode: 'auto'
+        };
+      }
+
+      xrayInbounds.push(inboundObj);
+    });
+
+    const config = {
+      log: { loglevel: 'warning' },
+      inbounds: xrayInbounds,
+      outbounds: [{ protocol: 'freedom', tag: 'direct' }]
+    };
+
+    fs.writeFileSync(XRAY_CONFIG_PATH, JSON.stringify(config, null, 2));
+    console.log(`[Xray] Config generated successfully with ${xrayInbounds.length} inbounds and ${clients.length} clients.`);
   } catch (e) {
-    console.error('Xray config regenerate error:', e.message);
+    console.error('[Xray] Config regenerate error:', e.message);
   }
 }
 
@@ -256,9 +313,24 @@ function restartXray() {
       xrayProcess.kill();
       xrayProcess = null;
     }
-    // In production: spawn XRAY_BIN with config
+
+    if (!fs.existsSync(XRAY_CONFIG_PATH)) {
+      console.warn('[Xray] Config file not found, skipping restart.');
+      return;
+    }
+
+    console.log(`[Xray] Executing binary: ${XRAY_BIN} run -config ${XRAY_CONFIG_PATH}`);
+    xrayProcess = spawn(XRAY_BIN, ['run', '-config', XRAY_CONFIG_PATH], { stdio: 'inherit' });
+
+    xrayProcess.on('error', (err) => {
+      console.error('[Xray] Failed to start process:', err.message);
+    });
+
+    xrayProcess.on('exit', (code, signal) => {
+      console.warn(`[Xray] Process exited with code ${code}, signal ${signal}`);
+    });
   } catch (e) {
-    console.error('Xray restart error:', e.message);
+    console.error('[Xray] Restart error:', e.message);
   }
 }
 
@@ -383,6 +455,10 @@ if (isMasterEnabled()) {
       const id = Number(req.params.id);
       const result = await dbRun(`DELETE FROM panels WHERE id=?`, [id]);
       if (result.changes === 0) return res.status(404).json({ error: 'panel not found' });
+      
+      await regenerateXrayConfigLocalOnly();
+      restartXray();
+
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -419,9 +495,6 @@ if (isMasterEnabled()) {
       }
 
       inPath = normalizePath(inPath);
-      if (alpn === 'h2' || alpn === 'h3') {
-        // keep as is
-      }
 
       const panel = await getPanelById(panelId);
       if (!panel) return res.status(404).json({ error: 'panel not found' });
@@ -443,7 +516,7 @@ if (isMasterEnabled()) {
       );
 
       if (Number(panel.is_remote) === 0) {
-        regenerateXrayConfigLocalOnly();
+        await regenerateXrayConfigLocalOnly();
         restartXray();
       }
 
@@ -471,6 +544,10 @@ if (isMasterEnabled()) {
       );
 
       if (result.changes === 0) return res.status(404).json({ error: 'inbound not found' });
+
+      await regenerateXrayConfigLocalOnly();
+      restartXray();
+
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -482,6 +559,10 @@ if (isMasterEnabled()) {
       const id = Number(req.params.id);
       const result = await dbRun(`DELETE FROM inbounds WHERE id=?`, [id]);
       if (result.changes === 0) return res.status(404).json({ error: 'inbound not found' });
+
+      await regenerateXrayConfigLocalOnly();
+      restartXray();
+
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -524,7 +605,7 @@ if (isMasterEnabled()) {
       }
 
       if (Number(panel.is_remote) === 0) {
-        regenerateXrayConfigLocalOnly();
+        await regenerateXrayConfigLocalOnly();
         restartXray();
       }
 
@@ -572,6 +653,10 @@ if (isMasterEnabled()) {
         `INSERT INTO users (username, uuid, sub_token) VALUES (?, ?, ?)`,
         [String(username).trim(), String(uuid).trim(), makeSubToken()]
       );
+
+      await regenerateXrayConfigLocalOnly();
+      restartXray();
+
       res.json({ success: true, id: ins.lastID });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -588,6 +673,10 @@ if (isMasterEnabled()) {
         [String(username).trim(), String(uuid).trim(), id]
       );
       if (result.changes === 0) return res.status(404).json({ error: 'user not found' });
+
+      await regenerateXrayConfigLocalOnly();
+      restartXray();
+
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -599,6 +688,10 @@ if (isMasterEnabled()) {
       const id = Number(req.params.id);
       const result = await dbRun(`DELETE FROM users WHERE id=?`, [id]);
       if (result.changes === 0) return res.status(404).json({ error: 'user not found' });
+
+      await regenerateXrayConfigLocalOnly();
+      restartXray();
+
       res.json({ success: true });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -664,6 +757,9 @@ if (isMasterEnabled()) {
         );
       }
 
+      await regenerateXrayConfigLocalOnly();
+      restartXray();
+
       const links = await getUserLinksByUserId(user.id);
       res.json({ success: true, user, links });
     } catch (e) {
@@ -681,8 +777,6 @@ if (isAgentEnabled()) {
   app.post('/agent/inbounds', requireAgent, async (req, res) => {
     try {
       const { tag, port, protocol, host, path: inPath, tls, fp, alpn } = req.body;
-      // In real agent mode, this would configure local xray
-      // For now we just acknowledge
       res.json({ success: true, remote_inbound_id: randomTag('remote') });
     } catch (e) {
       res.status(500).json({ error: e.message });
@@ -690,9 +784,99 @@ if (isAgentEnabled()) {
   });
 }
 
+// ========================= PROXY / DISPATCHER =========================
+async function getTargetPort(req) {
+  try {
+    const host = normalizeHost(req.headers ? req.headers.host : '');
+    const reqPath = normalizePath(req.path || req.url);
+
+    const inbounds = await dbAll(`
+      SELECT i.id, i.host, i.path, i.protocol, p.is_remote
+      FROM inbounds i
+      JOIN panels p ON p.id = i.panel_id
+      WHERE p.is_remote = 0
+    `);
+
+    for (const ib of inbounds) {
+      const ibHost = normalizeHost(ib.host);
+      const ibPath = normalizePath(ib.path);
+
+      if (host === ibHost && (reqPath === ibPath || reqPath.startsWith(ibPath + '/'))) {
+        return XRAY_BASE_PORT + Number(ib.id);
+      }
+    }
+  } catch (e) {
+    console.error('Proxy port lookup error:', e.message);
+  }
+  return null;
+}
+
+// Proxy Middleware for XHTTP / HTTP traffic
+app.use(async (req, res, next) => {
+  if (req.path.startsWith('/api') || req.path.startsWith('/sub') || req.path === '/login' || req.path === '/dashboard' || req.path === '/') {
+    return next();
+  }
+
+  const targetPort = await getTargetPort(req);
+  if (!targetPort) return next();
+
+  const options = {
+    hostname: '127.0.0.1',
+    port: targetPort,
+    path: req.url,
+    method: req.method,
+    headers: req.headers
+  };
+
+  const proxyReq = http.request(options, (proxyRes) => {
+    res.writeHead(proxyRes.statusCode, proxyRes.headers);
+    proxyRes.pipe(res, { end: true });
+  });
+
+  proxyReq.on('error', () => {
+    if (!res.headersSent) res.status(502).send('Bad Gateway');
+  });
+
+  req.pipe(proxyReq, { end: true });
+});
+
+// WebSocket Upgrade Handler
+server.on('upgrade', async (req, socket, head) => {
+  const targetPort = await getTargetPort({ headers: req.headers, path: req.url });
+  if (!targetPort) {
+    socket.destroy();
+    return;
+  }
+
+  const proxyReq = http.request({
+    hostname: '127.0.0.1',
+    port: targetPort,
+    path: req.url,
+    method: req.method,
+    headers: req.headers
+  });
+
+  proxyReq.on('upgrade', (proxyRes, proxySocket, proxyHead) => {
+    socket.write(
+      `HTTP/${proxyRes.httpVersion} ${proxyRes.statusCode} ${proxyRes.statusMessage}\r\n` +
+      Object.keys(proxyRes.headers).map(k => `${k}: ${proxyRes.headers[k]}`).join('\r\n') +
+      '\r\n\r\n'
+    );
+    proxySocket.pipe(socket);
+    socket.pipe(proxySocket);
+  });
+
+  proxyReq.on('error', () => socket.destroy());
+  proxyReq.end();
+});
+
 // ========================= START =========================
-server.listen(PORT, () => {
+server.listen(PORT, async () => {
   console.log(`🚀 SHAHON-PANELL Redesign running on port ${PORT}`);
   console.log(`   Role: ${NODE_ROLE}`);
   console.log(`   Admin: ${ADMIN_USER}`);
+
+  // Initial build and execution of Xray on startup
+  await regenerateXrayConfigLocalOnly();
+  restartXray();
 });
